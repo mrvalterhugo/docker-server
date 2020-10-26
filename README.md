@@ -1,6 +1,6 @@
 
 # Simple Automated Docker-Server
-> Main
+# Main
 - I have created this simple script file to quickly deploy my docker server with some containers in an Debian/Ubuntu enviroment.
 - It also has a dinamic DNS script to update DNS records in Route53. You can run this from any Linux system.
 - If you want to use it, make sure you edit with your own settings.
@@ -9,7 +9,7 @@
 - But you could add many more apps.
 - Make sure you firewall or Security Group allows ports 22 for SSH, 80 and 443 for Nginx and 53 TCP/UDP 67/UDP for Pi-hole
 
-> Sources:
+# Sources:
 - https://docs.docker.com/engine/install/ubuntu/
 - https://nickjanetakis.com/blog/docker-tip-30-running-docker-compose-from-a-different-directory
 - https://www.portainer.io/installation/
