@@ -1,21 +1,31 @@
 #!/bin/bash
-#Install required packages
-sudo apt-get remove docker docker-engine docker.io containerd awscli runc -y
-sudo apt-get install apt-transport-https ca-certificates curl gnupg-agent software-properties-common -y
-sudo apt install unzip -y
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian buster stable"
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
-sudo apt-key fingerprint 0EBFCD88
-sudo apt-get update
-sudo apt-get upgrade -y
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose jq -y
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose jq -y
+
+##Set Hostname
+sudo hostnamectl set-hostname docker-server
+
+sudo apt-get install -qy apt-transport-https && echo 'apt-transport-https has been installed ##############################' && sleep 3
+sudo apt-get install -yq ca-certificates && echo 'ca-certificates has been installed ######################################' && sleep 3
+sudo apt-get install -yq curl && echo 'curl has been installed ############################################################' && sleep 3
+sudo apt-get install -yq gnupg-agent && echo 'gnupg-agent has been installed ##############################################' && sleep 3
+sudo apt-get install -yq software-properties-common && echo 'software-properties-common has been installed ################' && sleep 3
+sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/debian buster stable' && echo 'docker repo has been installed ###############' && sleep 3
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - && echo 'key has been downloaded ########' && sleep 3
+sudo apt-key fingerprint 0EBFCD88 && echo 'fingerprint key has been add ##############################################' && sleep 3
+sudo apt update && echo 'APT updated #####################################################################' && sleep 3
+sudo apt-get -yq install docker-ce && echo 'Docker-ce installed ###########################################################' && sleep 3
+sudo apt-get -yq install docker-ce-cli && echo 'Docker-ce-cli installed ###################################################' && sleep 3
+sudo apt-get -yq install containerd.io && echo 'containerd.io installed ###################################################' && sleep 3
+sudo apt-get -yq install docker-compose && echo 'docker-compose installed #################################################' && sleep 3
+sudo apt-get -yq install jq && echo 'jq installed #####################################################################' && sleep 3
+sudo curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip' && echo 'AWS-CLI downloaded ###' && sleep 3
+sudo apt-get -yqinstall unzip && echo 'Unzip has been installed ##########################################################' && sleep 3
+sudo unzip awscliv2.zip && echo 'AWS-CLI unzipped ####################################################################' && sleep 3
+sudo ./aws/install && echo 'AWS-CLI installed #####################################################################' && sleep 3
+
+echo 'All Packages have been installed #####################################################################' && sleep 3
 
 #Create folders to be used by containers
-mkdir -p ~/configs/{netdata,pihole,nginx,syncthing,portainer,whoogle}
+mkdir -p ~/configs/{netdata,pihole,nginx,guacamole,syncthing,portainer,whoogle,cloudflare,code}
 
 #Create docker file inside folders
 
@@ -165,6 +175,58 @@ volumes:
   netdatacache:
 EOF
 
+#########Code Server######
+cat << 'EOF' > ~/configs/code/docker-compose.yaml
+---
+version: "2.1"
+services:
+  code-server:
+    image: linuxserver/code-server
+    container_name: code-server
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - PASSWORD=123456 #optional
+      - SUDO_PASSWORD=123456 #optional
+     # - PROXY_DOMAIN=code-server.example.com #optional
+    volumes:
+      - ./config:/config
+    ports:
+      - 8443:8443
+    restart: unless-stopped
+EOF
+
+#########Guacamole#######
+cat << 'EOF' > ~/configs/guacamole/docker-compose.yaml
+version: "2"
+services:
+  guacamole:
+    image: oznu/guacamole
+    container_name: guacamole
+    volumes:
+      - ./config:/config
+    ports:
+      - 8080:8080
+    environment:
+      EXTENSIONS: 'auth-totp'
+    restart: unless-stopped
+EOF
+
+#######CloudFlare####### Optional, only if using Cloudflare
+cat << 'EOF' > ~/configs/cloudflare/docker-compose.yaml
+version: '2'
+services:
+  cloudflare-ddns:
+    image: oznu/cloudflare-ddns:latest
+    restart: always
+    environment:
+      - API_KEY=xxxxxxx
+      - ZONE=example.com
+      - SUBDOMAIN=subdomain
+      - PROXIED=false
+EOF
+
 #Create the Dynamic DNS Script
 ########DNS IP Update Script#####
 cat << 'EOF' > ~/dns-checker.sh 
@@ -232,9 +294,22 @@ sudo chmod +x ~/dns-checker.sh
 echo "0 *     * * *   root    ~/dns-checker.sh >> ~/dns.log 2>&1" >> /etc/crontab
 
 #Start all containers
+echo "##################"
+echo "Downloading and starting containers"
+echo "##################"
+sleep 3
+sudo docker-compose -f ~/configs/nginx/docker-compose.yaml up -d
+sudo docker-compose -f ~/configs/portainer/docker-compose.yaml up -d
 sudo docker-compose -f ~/configs/netdata/docker-compose.yaml up -d
 sudo docker-compose -f ~/configs/pihole/docker-compose.yaml up -d
-sudo docker-compose -f ~/configs/nginx/docker-compose.yaml up -d
 sudo docker-compose -f ~/configs/syncthing/docker-compose.yaml up -d
-sudo docker-compose -f ~/configs/portainer/docker-compose.yaml up -d
 sudo docker-compose -f ~/configs/whoogle/docker-compose.yaml up -d
+sudo docker-compose -f ~/configs/cloudflare/docker-compose.yaml up -d
+sudo docker-compose -f ~/configs/code/docker-compose.yaml up -d
+echo "##################"
+echo "##################"
+echo "Congrats, your new docker server is now provisioned"
+echo "##################"
+echo "##################"
+sudo docker ps
+sleep 10
